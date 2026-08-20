@@ -41,7 +41,7 @@ export function collectWarnings(
   for (const obj of view.objects) {
     if (obj.kind === 'image') {
       const dpi = effectiveDpi(obj)
-      if (dpi + 0.1 < g.targetDpi) {
+      if (dpi < g.targetDpi) {
         out.push({ objectId: obj.id, kind: 'lowDpi', measured: dpi, threshold: g.targetDpi, unit: 'dpi' })
       }
       continue
