@@ -8,6 +8,18 @@ describe('units', () => {
     expect(MM_PER_INCH).toBe(25.4)
   })
 
+  it('converts mm to px independently', () => {
+    const pxPerMm = dpiToPxPerMm(300)
+    // 220mm @ 300dpi = 220 * (300/25.4) = 2598.4252px
+    expect(mmToPx(220, pxPerMm)).toBeCloseTo(2598.4252, 4)
+  })
+
+  it('converts px to mm independently', () => {
+    const pxPerMm = dpiToPxPerMm(300)
+    // 2598.4252px @ 300dpi = 2598.4252 / (300/25.4) = 220mm
+    expect(pxToMm(2598.4252, pxPerMm)).toBeCloseTo(220, 4)
+  })
+
   it('round-trips mm through px without drift', () => {
     const pxPerMm = dpiToPxPerMm(300)
     expect(pxToMm(mmToPx(220, pxPerMm), pxPerMm)).toBeCloseTo(220, 10)
@@ -20,8 +32,19 @@ describe('units', () => {
     expect(size.h).toBe(4725)
   })
 
-  it('rejects a non-positive DPI rather than producing Infinity', () => {
+  it('rejects DPI of 0', () => {
     expect(() => dpiToPxPerMm(0)).toThrow(/positive/)
+  })
+
+  it('rejects negative DPI', () => {
     expect(() => dpiToPxPerMm(-300)).toThrow(/positive/)
+  })
+
+  it('rejects NaN DPI', () => {
+    expect(() => dpiToPxPerMm(NaN)).toThrow(/positive/)
+  })
+
+  it('rejects Infinity DPI', () => {
+    expect(() => dpiToPxPerMm(Infinity)).toThrow(/positive/)
   })
 })

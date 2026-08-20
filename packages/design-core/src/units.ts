@@ -2,7 +2,7 @@ export const MM_PER_INCH = 25.4
 
 /** Pixels per millimetre for a given dots-per-inch. 300 DPI -> 11.811 px/mm. */
 export function dpiToPxPerMm(dpi: number): number {
-  if (!(dpi > 0)) throw new Error(`DPI must be positive, got ${dpi}`)
+  if (!(Number.isFinite(dpi) && dpi > 0)) throw new Error(`DPI must be positive, got ${dpi}`)
   return dpi / MM_PER_INCH
 }
 
