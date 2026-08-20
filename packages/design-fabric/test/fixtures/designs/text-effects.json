@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1, "productId": "p", "sizeId": "s", "colourwayId": "c",
+  "views": { "front": { "printAreaMm": { "w": 200, "h": 200 }, "objects": [
+    { "id": "t1", "kind": "text", "text": "OUTLINE", "xMm": 20, "yMm": 90,
+      "wMm": 160, "rotation": 0,
+      "font": { "family": "InterTest", "weight": 700, "sizeMm": 18, "letterSpacingMm": 0.5, "lineHeight": 1.2 },
+      "fill": "#f5c518",
+      "stroke": { "color": "#101010", "widthMm": 1.2 },
+      "shadow": { "offsetXMm": 1.5, "offsetYMm": 1.5, "blurMm": 3, "color": "rgba(0,0,0,0.55)" } } ] } }
+}

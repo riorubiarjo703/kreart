@@ -1,0 +1,165 @@
+import { FabricImage, Shadow, Textbox, type FabricObject } from 'fabric'
+import { mmToPx, pxToMm, type DesignView, type ImageObject, type TextObject } from '@kreart/design-core'
+import { CurvedText } from './curved-text.js'
+import { assertFontAvailable } from './fonts.js'
+
+export type MapContext = { pxPerMm: number }
+
+/**
+ * Build a Fabric object from a text object. Every dimension is converted from mm
+ * at this boundary; nothing downstream sees millimetres, nothing upstream sees pixels.
+ */
+export function mapTextObject(obj: TextObject, { pxPerMm }: MapContext): FabricObject {
+  const px = (mm: number) => mmToPx(mm, pxPerMm)
+
+  const shared = {
+    left: px(obj.xMm),
+    top: px(obj.yMm),
+    angle: obj.rotation,
+    fill: obj.fill,
+    originX: 'left' as const,
+    originY: 'top' as const,
+    stroke: obj.stroke?.color ?? null,
+    strokeWidth: obj.stroke ? px(obj.stroke.widthMm) : 0,
+    shadow: obj.shadow
+      ? new Shadow({
+          color: obj.shadow.color,
+          offsetX: px(obj.shadow.offsetXMm),
+          offsetY: px(obj.shadow.offsetYMm),
+          blur: px(obj.shadow.blurMm),
+        })
+      : null,
+  }
+
+  if (obj.curve) {
+    return new CurvedText({
+      ...shared,
+      text: obj.text,
+      fontFamily: obj.font.family,
+      fontWeight: obj.font.weight,
+      fontSize: px(obj.font.sizeMm),
+      letterSpacing: px(obj.font.letterSpacingMm),
+      radius: px(obj.curve.radiusMm),
+      direction: obj.curve.direction,
+    } as Partial<CurvedText>)
+  }
+
+  // CurvedText already calls assertFontAvailable() before building its font
+  // string, so an unregistered weight fails loudly instead of node-canvas
+  // silently substituting the nearest face. Mirror that here for the
+  // straight-text path so the two paths agree: without this, curved text
+  // would fail loudly on a bad weight while straight text silently printed
+  // in the wrong weight.
+  assertFontAvailable(obj.font.family, obj.font.weight)
+
+  // Textbox, not FabricText: `wMm` is the width validatePlacement treats as
+  // authoritative (spec §6.2), and spec §4.2 derives text height from
+  // "font.sizeMm, lineHeight and wrapping within wMm". A FabricText does not
+  // wrap, so a declared width of 10mm used to render 501mm wide while
+  // validation happily measured the 10mm nothing enforced — the containment
+  // check passed a design overflowing the print area. Textbox wraps at the
+  // width it is given, which makes the declared box the box that renders.
+  //
+  // Curved text is exempt above: an arc has no wrap width.
+  return new Textbox(obj.text, {
+    ...shared,
+    width: px(obj.wMm),
+    fontFamily: obj.font.family,
+    fontWeight: obj.font.weight,
+    fontSize: px(obj.font.sizeMm),
+    lineHeight: obj.font.lineHeight,
+    charSpacing: (obj.font.letterSpacingMm / obj.font.sizeMm) * 1000, // Fabric uses 1/1000 em
+    backgroundColor: obj.background?.color,
+  })
+}
+
+/**
+ * Measured *unrotated* height in mm for each text object in a view.
+ *
+ * design-core refuses to guess text heights (Tasks 4 and 5) because a guessed
+ * height silently validates a design that does not fit. This is the supplier.
+ *
+ * Deliberately `getScaledHeight()` and NOT `getBoundingRect().height`: in
+ * Fabric 7 the bounding rect is the rotated, axis-aligned box, whereas
+ * validate.ts is the layer that applies rotation (rotatedBoundsMm). Feeding
+ * it a rotated height rotates the object twice, so the authoritative
+ * containment check of spec §6.2 measures a rectangle the design does not
+ * have — at 90 degrees a bounding-rect height is literally the text's width.
+ * The contract here is therefore: heights come out of this function upright,
+ * and design-core turns them.
+ */
+export function textHeightsMm(view: DesignView, ctx: MapContext): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const obj of view.objects) {
+    if (obj.kind !== 'text') continue
+    const mapped = mapTextObject(obj, ctx)
+    out[obj.id] = pxToMm(mapped.getScaledHeight(), ctx.pxPerMm)
+  }
+  return out
+}
+
+/**
+ * Resolves a media id to a drawable image. Must reject on missing media:
+ * silently rendering a blank would ship a garment with a hole in the design (spec §11).
+ */
+export type MediaResolver = (
+  mediaId: string,
+  background: 'original' | 'removed',
+) => Promise<CanvasImageSource>
+
+export async function mapImageObject(
+  obj: ImageObject,
+  { pxPerMm }: MapContext,
+  resolve: MediaResolver,
+): Promise<FabricObject> {
+  const source = await resolve(obj.mediaId, obj.background)
+  const img = new FabricImage(source as never, {
+    left: mmToPx(obj.xMm, pxPerMm),
+    top: mmToPx(obj.yMm, pxPerMm),
+    angle: obj.rotation,
+    opacity: obj.opacity,
+    originX: 'left',
+    originY: 'top',
+  })
+
+  // Fail loudly rather than dividing by a fallback: a resolved image with a
+  // non-positive dimension would otherwise silently produce a nonsensical
+  // scale factor instead of an error (spec §11 — no silent substitution).
+  if (!Number.isFinite(img.width) || !Number.isFinite(img.height) || img.width <= 0 || img.height <= 0) {
+    throw new Error(
+      `Media "${obj.mediaId}" resolved to an image with invalid dimensions ${img.width}x${img.height} (both must be positive)`,
+    )
+  }
+
+  // The document's stored sourcePx (used elsewhere, e.g. effectiveDpi's print-quality
+  // guardrail) must describe the same pixels this function actually scales from.
+  // If media was swapped or metadata went stale, the guardrail would silently report
+  // a DPI the render does not have. Fail loudly instead of trusting stale metadata.
+  if (img.width !== obj.sourcePx.w || img.height !== obj.sourcePx.h) {
+    throw new Error(
+      `Media "${obj.mediaId}" sourcePx mismatch: recorded ${obj.sourcePx.w}x${obj.sourcePx.h}, resolved image is ${img.width}x${img.height}`,
+    )
+  }
+
+  // scale the intrinsic pixels down to the requested physical size
+  img.scaleX = mmToPx(obj.wMm, pxPerMm) / img.width
+  img.scaleY = mmToPx(obj.hMm, pxPerMm) / img.height
+
+  return img
+}
+
+export async function mapView(
+  view: DesignView,
+  ctx: MapContext,
+  resolve: MediaResolver,
+): Promise<FabricObject[]> {
+  const out: FabricObject[] = []
+  for (const obj of view.objects) {
+    out.push(
+      obj.kind === 'image'
+        ? await mapImageObject(obj, ctx, resolve)
+        : mapTextObject(obj, ctx),
+    )
+  }
+  return out
+}

@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  # Spec §12.1: the print pipeline depends on node-canvas behaving identically
+  # in CI and on the deploy target. A host-only test does not establish that.
+  # ubuntu-latest runners are amd64 - the same architecture the deploy target
+  # runs on. Do not pin a different architecture here: this job's entire
+  # purpose is to catch an amd64-specific node-canvas prebuild failure that
+  # an arm64 developer machine cannot see.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the real worker image
+        run: docker build -f docker/worker.Dockerfile -t kreart-worker .
+      - name: Measure a calibration square inside the container
+        run: docker run --rm kreart-worker pnpm vitest run packages/design-fabric/test/calibration.test.ts
+      - name: Golden images inside the container
+        run: docker run --rm kreart-worker pnpm vitest run packages/design-fabric/test/golden.test.ts
