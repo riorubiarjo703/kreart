@@ -97,16 +97,26 @@ export async function renderViewToPdf(
 ): Promise<Buffer> {
   const view = requireView(doc, viewSlug)
 
-  const pdf = createCanvas(
-    view.printAreaMm.w * PT_PER_MM,
-    view.printAreaMm.h * PT_PER_MM,
-    'pdf',
-  )
+  // canvas@3.2.3's native Canvas constructor coerces width/height through
+  // Napi's Uint32Value() before ever reaching cairo_pdf_surface_create -
+  // there is no public API in this pinned version for a fractional-point
+  // PDF page, so a plain `mm * PT_PER_MM` surface size gets floored. Per
+  // spec §10.3 ("canvas dimensions round UP, never down" - the same reason
+  // canvasSizePx uses Math.ceil), we round the page box UP instead: a
+  // marginally oversized page a print shop's RIP trims, never one that
+  // clips the artwork at the right or bottom edge. The drawing scale below
+  // (ctx.scale(PT_PER_MM, PT_PER_MM)) is untouched by this, so the artwork
+  // itself stays placed at its exact millimetre coordinates regardless of
+  // the page box rounding.
+  const surfaceWpt = Math.ceil(view.printAreaMm.w * PT_PER_MM)
+  const surfaceHpt = Math.ceil(view.printAreaMm.h * PT_PER_MM)
+
+  const pdf = createCanvas(surfaceWpt, surfaceHpt, 'pdf')
   const ctx = pdf.getContext('2d') as unknown as CanvasRenderingContext2D
 
   if (opts.backgroundColor) {
     ctx.fillStyle = opts.backgroundColor
-    ctx.fillRect(0, 0, view.printAreaMm.w * PT_PER_MM, view.printAreaMm.h * PT_PER_MM)
+    ctx.fillRect(0, 0, surfaceWpt, surfaceHpt)
   }
 
   ctx.save()
