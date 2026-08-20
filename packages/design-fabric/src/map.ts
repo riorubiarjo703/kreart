@@ -1,5 +1,5 @@
-import { FabricText, Shadow, type FabricObject } from 'fabric'
-import { mmToPx, pxToMm, type DesignView, type TextObject } from '@kreart/design-core'
+import { FabricImage, FabricText, Shadow, type FabricObject } from 'fabric'
+import { mmToPx, pxToMm, type DesignView, type ImageObject, type TextObject } from '@kreart/design-core'
 import { CurvedText } from './curved-text.js'
 import { assertFontAvailable } from './fonts.js'
 
@@ -75,6 +75,53 @@ export function textHeightsMm(view: DesignView, ctx: MapContext): Record<string,
     if (obj.kind !== 'text') continue
     const mapped = mapTextObject(obj, ctx)
     out[obj.id] = pxToMm(mapped.getBoundingRect().height, ctx.pxPerMm)
+  }
+  return out
+}
+
+/**
+ * Resolves a media id to a drawable image. Must reject on missing media:
+ * silently rendering a blank would ship a garment with a hole in the design (spec §11).
+ */
+export type MediaResolver = (
+  mediaId: string,
+  background: 'original' | 'removed',
+) => Promise<CanvasImageSource>
+
+export async function mapImageObject(
+  obj: ImageObject,
+  { pxPerMm }: MapContext,
+  resolve: MediaResolver,
+): Promise<FabricObject> {
+  const source = await resolve(obj.mediaId, obj.background)
+  const img = new FabricImage(source as never, {
+    left: mmToPx(obj.xMm, pxPerMm),
+    top: mmToPx(obj.yMm, pxPerMm),
+    angle: obj.rotation,
+    opacity: obj.opacity,
+    originX: 'left',
+    originY: 'top',
+  })
+
+  // scale the intrinsic pixels down to the requested physical size
+  img.scaleX = mmToPx(obj.wMm, pxPerMm) / (img.width || 1)
+  img.scaleY = mmToPx(obj.hMm, pxPerMm) / (img.height || 1)
+
+  return img
+}
+
+export async function mapView(
+  view: DesignView,
+  ctx: MapContext,
+  resolve: MediaResolver,
+): Promise<FabricObject[]> {
+  const out: FabricObject[] = []
+  for (const obj of view.objects) {
+    out.push(
+      obj.kind === 'image'
+        ? await mapImageObject(obj, ctx, resolve)
+        : mapTextObject(obj, ctx),
+    )
   }
   return out
 }
