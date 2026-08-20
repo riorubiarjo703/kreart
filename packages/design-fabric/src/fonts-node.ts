@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { registerFont } from 'canvas'
+import { setFontAvailabilityCheck } from './fonts.js'
 
 /**
  * node-canvas's font registry is process-global. In a persistent worker
@@ -43,3 +44,8 @@ export function registerFontFile(path: string, family: string, weight: number): 
   registerFont(resolvedPath, { family, weight: String(weight) })
   registered.set(key, resolvedPath)
 }
+
+// Install the availability check backed by the registration map above, so
+// that registering a font makes it available and anything else fails loudly
+// (spec §11) instead of node-canvas silently substituting a nearby weight.
+setFontAvailabilityCheck((family, weight) => registered.has(`${family}|${weight}`))
