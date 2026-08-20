@@ -85,6 +85,27 @@ function contentStreams(pdf: Buffer): string {
   return out.join('\n')
 }
 
+/**
+ * The page box, in points, read from wherever this cairo build put it.
+ *
+ * `/MediaBox` lives in the page OBJECT DICTIONARY, not in a content stream.
+ * Where that dictionary ends up is a cairo-version detail: some builds write it
+ * as a plain top-level object (visible in the raw bytes), others pack it into a
+ * compressed object stream (`/ObjStm`, only visible after inflating). Searching
+ * one place passes on one platform and fails on the other — which is exactly how
+ * this test broke in CI while passing locally and in the container.
+ *
+ * Spacing varies too, so the four numbers are parsed rather than string-matched.
+ */
+function pageBoxPt(pdf: Buffer): { w: number; h: number } {
+  const haystacks = [pdf.toString('latin1'), contentStreams(pdf)]
+  for (const h of haystacks) {
+    const m = h.match(/\/MediaBox\s*\[\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s*\]/)
+    if (m) return { w: Number(m[3]), h: Number(m[4]) }
+  }
+  throw new Error('No /MediaBox found in the PDF, raw or inflated')
+}
+
 describe('renderViewToPdf', () => {
   it('produces a PDF', async () => {
     const pdf = await renderViewToPdf(doc, 'front', { resolve })
@@ -114,8 +135,13 @@ describe('renderViewToPdf', () => {
     // shop actually measures.
     const expectedW = Math.ceil(300 * PT_PER_MM)   // 851
     const expectedH = Math.ceil(400 * PT_PER_MM)   // 1134
-    const content = contentStreams(pdf)
-    expect(content).toMatch(new RegExp(`/MediaBox \\[ 0 0 ${expectedW} ${expectedH} \\]`))
+    const box = pageBoxPt(pdf)
+    expect(box.w).toBe(expectedW)
+    expect(box.h).toBe(expectedH)
+    // and prove the rounding went the right way: the page must be >= the
+    // physical print area, never smaller
+    expect(box.w).toBeGreaterThanOrEqual(300 * PT_PER_MM)
+    expect(box.h).toBeGreaterThanOrEqual(400 * PT_PER_MM)
   })
 
   it('positions artwork at its exact physical size regardless of page-box rounding', async () => {
