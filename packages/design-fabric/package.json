@@ -1,0 +1,17 @@
+{
+  "name": "@kreart/design-fabric",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fonts-node": "./src/fonts-node.ts",
+    "./node": "./src/render-node.ts"
+  },
+  "dependencies": {
+    "@kreart/design-core": "workspace:*",
+    "canvas": "^3.2.3",
+    "fabric": "7.4.0"
+  }
+}

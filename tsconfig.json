@@ -1,1 +1,1 @@
-{ "files": [], "references": [{ "path": "packages/design-core" }] }
+{ "files": [], "references": [{ "path": "packages/design-core" }, { "path": "packages/design-fabric" }] }
