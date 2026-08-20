@@ -1,9 +1,15 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+
+# Native/binary dependencies whose install scripts must run.
+# pnpm blocks build scripts by default; without these the native module is
+# silently absent and fails at runtime (see spec §2.3 and §12.1).
 allowBuilds:
   canvas: true
   esbuild: true
+  sharp: true
 onlyBuiltDependencies:
   - canvas
   - esbuild
+  - sharp
