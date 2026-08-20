@@ -43,19 +43,30 @@ export class DesignHistory {
     this.#current = { doc: next, coalesceKey: opts.coalesceKey }
   }
 
+  /**
+   * A restored entry is deliberately re-seated without its `coalesceKey`.
+   * Coalescing means "this commit continues the gesture that produced the
+   * current entry" — and nothing continues a gesture across an undo. Keeping
+   * the key would let the next commit sharing it REPLACE the restored entry:
+   * drag o1, make another edit, undo, drag o1 again, and the restored state
+   * becomes unreachable while depth stays put. Data loss, silently.
+   */
+  #restore(entry: Entry): DesignDocument {
+    this.#current = { doc: entry.doc }
+    return this.#current.doc
+  }
+
   undo(): DesignDocument {
     const prev = this.#past.pop()
     if (!prev) return this.#current.doc
     this.#future.push(this.#current)
-    this.#current = prev
-    return this.#current.doc
+    return this.#restore(prev)
   }
 
   redo(): DesignDocument {
     const next = this.#future.pop()
     if (!next) return this.#current.doc
     this.#past.push(this.#current)
-    this.#current = next
-    return this.#current.doc
+    return this.#restore(next)
   }
 }

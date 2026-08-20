@@ -61,6 +61,43 @@ describe('DesignHistory', () => {
     expect(h.depth).toBe(HISTORY_LIMIT)
   })
 
+  // Whole-branch review I5. undo() restored the previous entry together with
+  // its coalesceKey, so the very next commit sharing that key REPLACED the
+  // restored entry instead of pushing a new one — the state in between became
+  // unreachable and depth never grew. In the editor that is: drag an object,
+  // do something else, undo, drag the same object again, and the undo history
+  // silently loses a step.
+  it('does not coalesce a fresh drag into a state restored by undo', () => {
+    const h = new DesignHistory(doc(0))
+    h.commit(doc(1), { coalesceKey: 'drag:o1' })   // drag o1
+    h.commit(doc(2))                               // some other edit
+    expect(h.undo().productId).toBe('p1')          // back to the dragged state
+    h.commit(doc(3), { coalesceKey: 'drag:o1' })   // drag o1 again
+
+    expect(h.depth).toBe(2)
+    expect(h.current.productId).toBe('p3')
+    expect(h.undo().productId).toBe('p1')          // the restored state survives
+    expect(h.undo().productId).toBe('p0')
+  })
+
+  it('does not coalesce into a state restored by redo either', () => {
+    const h = new DesignHistory(doc(0))
+    h.commit(doc(1), { coalesceKey: 'drag:o1' })
+    h.undo()
+    h.redo()                                       // back at p1, via the future stack
+    h.commit(doc(2), { coalesceKey: 'drag:o1' })
+
+    expect(h.depth).toBe(2)
+    expect(h.undo().productId).toBe('p1')
+  })
+
+  it('still coalesces a drag that is never interrupted by an undo', () => {
+    const h = new DesignHistory(doc(0))
+    h.commit(doc(1), { coalesceKey: 'drag:o1' })
+    h.commit(doc(2), { coalesceKey: 'drag:o1' })
+    expect(h.depth).toBe(1)
+  })
+
   it('returns current unchanged when there is nothing to undo', () => {
     const h = new DesignHistory(doc(0))
     expect(h.undo().productId).toBe('p0')
