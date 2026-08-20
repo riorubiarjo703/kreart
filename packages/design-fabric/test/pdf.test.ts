@@ -48,6 +48,32 @@ const imageDoc: DesignDocument = {
   },
 }
 
+/**
+ * Straight (uncurved) text carrying both a stroke and a shadow.
+ *
+ * Every other text in this file is CurvedText, which sets
+ * `objectCaching = false` in its own constructor — so nothing here used to
+ * exercise Fabric's caching path on a PDF surface. FabricText inherits
+ * `objectCaching = true`, takes `shouldCache()`, and `drawCacheOnCanvas`
+ * throws `TypeError: Image or Canvas expected` against a cairo PDF context.
+ */
+const straightTextDoc: DesignDocument = {
+  schemaVersion: 1, productId: 'p', sizeId: 's', colourwayId: 'c',
+  views: {
+    front: {
+      printAreaMm: { w: 200, h: 200 },
+      objects: [{
+        id: 't1', kind: 'text', text: 'OUTLINE',
+        xMm: 20, yMm: 90, wMm: 160, rotation: 0,
+        font: { family: 'InterTest', weight: 700, sizeMm: 18, letterSpacingMm: 0.5, lineHeight: 1.2 },
+        fill: '#f5c518',
+        stroke: { color: '#101010', widthMm: 1.2 },
+        shadow: { offsetXMm: 1.5, offsetYMm: 1.5, blurMm: 3, color: 'rgba(0,0,0,0.55)' },
+      }],
+    },
+  },
+}
+
 function contentStreams(pdf: Buffer): string {
   const raw = pdf.toString('latin1')
   const out: string[] = []
@@ -121,6 +147,26 @@ describe('renderViewToPdf', () => {
   it('is far smaller than the equivalent raster', async () => {
     const pdf = await renderViewToPdf(doc, 'front', { resolve })
     expect(pdf.length).toBeLessThan(100_000)
+  })
+
+  it('renders straight text with a stroke and a shadow instead of throwing', async () => {
+    // Regression guard for the whole-branch review's C1. FabricText inherits
+    // objectCaching = true; rendering it straight onto a cairo PDF context
+    // took Fabric's shouldCache() branch and threw
+    // `TypeError: Image or Canvas expected` out of drawCacheOnCanvas. Every
+    // other text in this file is CurvedText, which disables caching itself,
+    // so the PDF path had never seen a cached object. renderViewToPdf now
+    // clears objectCaching on each object before rendering it.
+    const pdf = await renderViewToPdf(straightTextDoc, 'front', { resolve })
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-')
+  })
+
+  it('emits straight-text glyphs as vector paths too, not as a cached raster', async () => {
+    // The cache path, had it worked, would have blitted a bitmap: proving the
+    // glyphs arrive as curve/line operators proves we took the direct path.
+    const content = contentStreams(await renderViewToPdf(straightTextDoc, 'front', { resolve }))
+    expect(content).toMatch(/(?<![A-Za-z])c(?![A-Za-z])/)
+    expect(content).not.toMatch(/(?<![A-Za-z])Tj(?![A-Za-z])/)
   })
 
   it('documents the known colour limitation from spec 10.4', async () => {

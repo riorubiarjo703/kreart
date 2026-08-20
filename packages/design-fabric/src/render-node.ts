@@ -125,6 +125,22 @@ export async function renderViewToPdf(
   // DPI's px-per-mm here would scale the mapped objects a second time.
   ctx.scale(PT_PER_MM, PT_PER_MM)   // one unit == one millimetre
   for (const obj of await mapView(view, { pxPerMm: 1 }, opts.resolve)) {
+    // Fabric's render cache draws the object into an offscreen HTMLCanvas
+    // first and then blits that bitmap onto the target context. There is no
+    // Fabric canvas here — objects are rendered straight onto a cairo PDF
+    // context — so `drawCacheOnCanvas` receives a context with no cache
+    // element and throws `TypeError: Image or Canvas expected`. FabricText
+    // inherits `objectCaching = true`, so every straight text used to crash
+    // this routine; CurvedText disables caching in its own constructor,
+    // which is the only reason the PDF tests ever passed.
+    //
+    // Turning the cache off per object, here, is also what we want for
+    // print regardless: a cached blit would rasterise glyphs at the cache
+    // canvas's resolution, whereas the direct path lets cairo convert them
+    // to vector outlines (spec §10.2). This is a property of the PDF
+    // surface only — the PNG path renders through a real StaticCanvas and
+    // keeps caching, and CurvedText's own default is untouched.
+    obj.objectCaching = false
     obj.render(ctx)
   }
   ctx.restore()
