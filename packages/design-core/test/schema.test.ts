@@ -47,6 +47,13 @@ describe('designDocumentSchema', () => {
     expect(() => parseDesignDocument(bad)).toThrow()
   })
 
+  it('rejects unknown keys inside sourcePx specifically', () => {
+    const bad = structuredClone(validDoc)
+    // @ts-expect-error deliberately wrong shape
+    bad.views.front.objects[0].sourcePx.extraPx = 999
+    expect(() => parseDesignDocument(bad)).toThrow()
+  })
+
   it('rejects negative millimetre dimensions', () => {
     const bad = structuredClone(validDoc)
     bad.views.front.objects[0]!.wMm = -10

@@ -6,7 +6,7 @@ const mm = z.number().finite().nonnegative()
 const signedMm = z.number().finite()
 const colour = z.string().min(1)
 
-const sizePx = z.object({ w: z.number().int().positive(), h: z.number().int().positive() })
+const sizePx = z.object({ w: z.number().int().positive(), h: z.number().int().positive() }).strict()
 
 export const imageObjectSchema = z.object({
   id: z.string().min(1),
