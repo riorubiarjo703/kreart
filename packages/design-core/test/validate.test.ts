@@ -51,10 +51,23 @@ describe('validatePlacement', () => {
   })
 
   it('accounts for rotation when deciding containment', () => {
-    // 100x100 at 45deg spans ~141mm, pushing it past the right edge
+    // A 100x100 square at 45deg spans 100*sqrt(2) = 141.421mm about its own
+    // centre, which sits at (260, 60). So it reaches 330.711mm to the right
+    // of a 300mm print area (30.711mm over) and -10.711mm above it.
+    //
+    // Deliberately exact rather than "> 0": a merely-positive assertion is
+    // satisfied by any wrong rotation too, including rotating the same rect
+    // twice — which is precisely how the double-rotation defect in
+    // textHeightsMm survived every review of this file.
     const issues = validatePlacement(view([image({ xMm: 210, rotation: 45 })]), {})
     expect(issues).toHaveLength(1)
-    expect(issues[0]!.overflowMm.right).toBeGreaterThan(0)
+    const span = 100 * Math.SQRT2
+    expect(issues[0]!.overflowMm.right).toBeCloseTo(210 + 50 + span / 2 - 300, 6)
+    expect(issues[0]!.overflowMm.right).toBeCloseTo(30.711, 3)
+    expect(issues[0]!.overflowMm.top).toBeCloseTo(span / 2 - 60, 6)
+    expect(issues[0]!.overflowMm.top).toBeCloseTo(10.711, 3)
+    expect(issues[0]!.overflowMm.left).toBe(0)
+    expect(issues[0]!.overflowMm.bottom).toBe(0)
   })
 
   it('throws rather than guessing when a text height is not supplied', () => {

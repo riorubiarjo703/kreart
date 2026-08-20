@@ -104,7 +104,10 @@ export const PT_PER_MM = 72 / 25.4
 export async function renderViewToPdf(
   doc: DesignDocument,
   viewSlug: string,
-  opts: Omit<RenderOptions, 'dpi'> & { dpi?: number },
+  // No `dpi`: a PDF page carries true physical dimensions and its content is
+  // vector, so there is no resolution to choose. The option used to be
+  // accepted here and silently ignored, which reads as if it did something.
+  opts: Omit<RenderOptions, 'dpi'>,
 ): Promise<Buffer> {
   const view = requireView(doc, viewSlug)
 
