@@ -6,6 +6,17 @@ import {
 } from '@kreart/design-core'
 import { mapView, type MediaResolver } from './map.js'
 
+// Side-effect import, deliberately value-free: fonts-node.js installs the
+// font-availability check that assertFontAvailable() consults. Without it
+// that assertion is a no-op, so a weight nobody registered renders silently
+// in whatever face node-canvas substitutes — a garment printed in the wrong
+// typeface, which spec §11 requires us to fail on instead. The tests all
+// import fonts-node.js themselves in order to register fonts, so they never
+// noticed; a worker importing only this module did. This module is the node
+// render entry point, so it is the right place to guarantee the guard is
+// armed. Never add this to index.ts, which must stay browser-safe.
+import './fonts-node.js'
+
 // map.ts (and everything it builds — FabricText, CurvedText, Shadow, ...)
 // imports from the "." (browser) build of fabric so it stays bundler-safe
 // for the real editor. That build reads bare `document`/`window`
