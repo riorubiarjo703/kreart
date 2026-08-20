@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createCanvas } from 'canvas'
 import { fileURLToPath } from 'node:url'
+import { copyFileSync, mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fontString, kernedAdvances, clearMetricsCache } from '../src/index.js'
 import { registerFontFile } from '../src/fonts-node.js'
 
@@ -16,6 +19,30 @@ beforeAll(() => {
 describe('registerFontFile', () => {
   it('throws on a missing file rather than silently substituting', () => {
     expect(() => registerFontFile('/no/such/font.ttf', 'Nope', 400)).toThrow(/no\/such\/font/)
+  })
+
+  it('does not throw when the identical family/weight/path is registered again', () => {
+    expect(() => registerFontFile(FONT, 'InterTest', 700)).not.toThrow()
+  })
+
+  it('throws when the same family/weight is registered against a different file, naming both paths', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'kreart-font-'))
+    const conflictPath = join(tmpDir, 'Inter-Bold-copy.ttf')
+    copyFileSync(FONT, conflictPath)
+
+    registerFontFile(FONT, 'ConflictTest', 700)
+
+    let error: Error | undefined
+    try {
+      registerFontFile(conflictPath, 'ConflictTest', 700)
+    } catch (e) {
+      error = e as Error
+    }
+
+    expect(error).toBeDefined()
+    expect(error!.message).toContain('ConflictTest')
+    expect(error!.message).toContain(FONT)
+    expect(error!.message).toContain(conflictPath)
   })
 })
 
