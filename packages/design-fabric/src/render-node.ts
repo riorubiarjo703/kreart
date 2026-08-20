@@ -1,5 +1,6 @@
 import { setEnv } from 'fabric'
 import { StaticCanvas, getEnv as getNodeFabricEnv } from 'fabric/node'
+import { createCanvas } from 'canvas'
 import {
   canvasSizePx, dpiToPxPerMm, type DesignDocument,
 } from '@kreart/design-core'
@@ -74,4 +75,49 @@ export async function renderViewToPng(
 ): Promise<Buffer> {
   const canvas = await renderViewToCanvas(doc, viewSlug, opts)
   return canvas.getNodeCanvas().toBuffer('image/png')
+}
+
+/** PostScript points per millimetre. A PDF page is measured in points. */
+export const PT_PER_MM = 72 / 25.4
+
+/**
+ * Vector PDF print master (spec §10.2).
+ *
+ * The page is sized in points so the PDF carries true physical dimensions.
+ * The context is scaled so one drawing unit equals one millimetre, then Fabric
+ * objects are rendered straight onto it — cairo converts glyphs to outlines,
+ * so no font is embedded and nothing can be substituted downstream.
+ *
+ * Known limitation (spec §10.4): output is untagged device RGB.
+ */
+export async function renderViewToPdf(
+  doc: DesignDocument,
+  viewSlug: string,
+  opts: Omit<RenderOptions, 'dpi'> & { dpi?: number },
+): Promise<Buffer> {
+  const view = requireView(doc, viewSlug)
+
+  const pdf = createCanvas(
+    view.printAreaMm.w * PT_PER_MM,
+    view.printAreaMm.h * PT_PER_MM,
+    'pdf',
+  )
+  const ctx = pdf.getContext('2d') as unknown as CanvasRenderingContext2D
+
+  if (opts.backgroundColor) {
+    ctx.fillStyle = opts.backgroundColor
+    ctx.fillRect(0, 0, view.printAreaMm.w * PT_PER_MM, view.printAreaMm.h * PT_PER_MM)
+  }
+
+  ctx.save()
+  // pxPerMm: 1 is deliberate — the context below is already scaled by
+  // PT_PER_MM so one drawing unit equals one millimetre. Passing the print
+  // DPI's px-per-mm here would scale the mapped objects a second time.
+  ctx.scale(PT_PER_MM, PT_PER_MM)   // one unit == one millimetre
+  for (const obj of await mapView(view, { pxPerMm: 1 }, opts.resolve)) {
+    obj.render(ctx)
+  }
+  ctx.restore()
+
+  return pdf.toBuffer()
 }
