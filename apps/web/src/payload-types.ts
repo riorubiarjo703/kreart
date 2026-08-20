@@ -263,11 +263,11 @@ export interface Product {
      */
     printArea: {
       /**
-       * True width in mm
+       * The real printed width. This is what a customer's "22 cm" means.
        */
       widthMm: number;
       /**
-       * True height in mm
+       * The real printed height.
        */
       heightMm: number;
       x: number;

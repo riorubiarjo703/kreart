@@ -88,18 +88,18 @@ export const Products: CollectionConfig = {
             {
               type: 'row',
               fields: [
-                { name: 'widthMm', type: 'number', required: true, min: 1, admin: { width: '50%', description: 'True width in mm' } },
-                { name: 'heightMm', type: 'number', required: true, min: 1, admin: { width: '50%', description: 'True height in mm' } },
+                { name: 'widthMm', label: 'Width (mm)', type: 'number', required: true, min: 1, admin: { width: '50%', description: 'The real printed width. This is what a customer\'s "22 cm" means.' } },
+                { name: 'heightMm', label: 'Height (mm)', type: 'number', required: true, min: 1, admin: { width: '50%', description: 'The real printed height.' } },
               ],
             },
             {
               type: 'row',
               admin: { description: 'Position on the mockup, normalised 0–1 (Plan 2 replaces these with a drag-a-rectangle editor).' },
               fields: [
-                { name: 'x', type: 'number', required: true, defaultValue: 0.25, min: 0, max: 1, admin: { width: '25%' } },
-                { name: 'y', type: 'number', required: true, defaultValue: 0.2, min: 0, max: 1, admin: { width: '25%' } },
-                { name: 'w', type: 'number', required: true, defaultValue: 0.5, min: 0, max: 1, admin: { width: '25%' } },
-                { name: 'h', type: 'number', required: true, defaultValue: 0.5, min: 0, max: 1, admin: { width: '25%' } },
+                { name: 'x', label: 'Left (0-1)', type: 'number', required: true, defaultValue: 0.25, min: 0, max: 1, admin: { width: '25%' } },
+                { name: 'y', label: 'Top (0-1)', type: 'number', required: true, defaultValue: 0.2, min: 0, max: 1, admin: { width: '25%' } },
+                { name: 'w', label: 'Width (0-1)', type: 'number', required: true, defaultValue: 0.5, min: 0, max: 1, admin: { width: '25%' } },
+                { name: 'h', label: 'Height (0-1)', type: 'number', required: true, defaultValue: 0.5, min: 0, max: 1, admin: { width: '25%' } },
               ],
             },
           ],
@@ -118,8 +118,8 @@ export const Products: CollectionConfig = {
             {
               type: 'row',
               fields: [
-                { name: 'widthMm', type: 'number', required: true, min: 1, admin: { width: '50%' } },
-                { name: 'heightMm', type: 'number', required: true, min: 1, admin: { width: '50%' } },
+                { name: 'widthMm', label: 'Width (mm)', type: 'number', required: true, min: 1, admin: { width: '50%' } },
+                { name: 'heightMm', label: 'Height (mm)', type: 'number', required: true, min: 1, admin: { width: '50%' } },
               ],
             },
           ],
