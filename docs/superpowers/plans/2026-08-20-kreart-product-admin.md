@@ -59,6 +59,55 @@ apps/web/e2e/
 
 ---
 
+### Task 0 (SPIKE): Does the editor stay responsive three levels deep?
+
+**Output is an answer, not code you keep.** Everything built here is throwaway and must not be committed.
+
+**The question:** the print-area editor is a custom `ui` component living at
+`products → views[] → printArea → editor` — a React component inside a Payload array field, two
+levels of nesting down. Payload array fields with embedded custom components have historically had
+rough edges around re-render cost and row reordering. **Unwinding a collection shape after the fact
+is exactly the retrofit spec §1.2 says role enforcement was deliberately avoiding**, so this is
+worth an hour before Task 8 commits to it.
+
+**What to find out, in order:**
+
+1. **Does dragging stay smooth with several views?** Create a product with **four** views, each
+   with three mockups. Drag the rectangle in view 4. Does it track the pointer, or lag?
+2. **Does every view re-render on each pointer move?** Add a temporary `console.count()` at the top
+   of the editor component. Drag once. If the count rises for views you are not touching, sibling
+   rows are re-rendering on every frame and `useFormFields` is subscribing too broadly.
+3. **Does reordering a view row corrupt the editor?** Drag view 2 above view 1 using Payload's row
+   handle. Does each editor still show its own mockup and its own rectangle, or do they swap?
+4. **Does collapsing and re-expanding a row lose state?** Payload unmounts collapsed array rows.
+
+**If 1 or 2 is bad:** the likely cause is `useFormFields` selecting too much. Narrow the selector to
+the single mockup path this row needs, and re-measure before concluding the structure is wrong.
+
+**If 3 or 4 is broken:** that is a structural finding. Report it and stop — do not work around it.
+The fallback is spec §2's rejected alternative (separate `product-views` collection), and choosing
+it is a decision for the human, not for the implementer.
+
+- [ ] **Step 1: Build a throwaway editor stub**
+
+A minimal `ui` field component that renders a coloured box, a `console.count()`, and reads one
+sibling field via `useField`. Enough to exercise nesting and re-render behaviour; no drag maths.
+
+- [ ] **Step 2: Run the four probes above and record real numbers**
+
+Not impressions. Frame rate or perceived lag for probe 1, actual counts for probe 2, and what you
+observed for 3 and 4.
+
+- [ ] **Step 3: Report and delete**
+
+Write the findings into your report, delete the stub, and confirm `git status` is clean.
+**Commit nothing from this task.**
+
+**This gate is advisory, not blocking, with one exception:** if probe 3 or 4 shows corruption,
+Task 8 does not start until a human has ruled on the structure.
+
+---
+
 ### Task 1: Print-area coupling maths
 
 **Files:**
@@ -1603,6 +1652,19 @@ export const PrintAreaEditor: React.FC<{ path: string }> = ({ path }) => {
         </p>
       )}
 
+      {/*
+        Spec §6.1: mockups are validated against EACH OTHER, which is all a save-time
+        hook can know. If the first upload for a view was mis-cropped, every later
+        upload matching that same wrong ratio passes. Say so, so a clean save is never
+        mistaken for confirmation that the photography is right.
+      */}
+      {mockupPx && (
+        <p style={{ fontSize: 12, color: 'var(--theme-elevation-500)' }}>
+          Mockups are checked for consistency with each other for this view. That cannot
+          confirm the photograph itself is correctly framed — only that they agree.
+        </p>
+      )}
+
       {mismatch && (
         <div data-testid="aspect-mismatch" style={{
           border: '1px solid #c9700a', background: 'rgba(201,112,10,.08)',
@@ -1950,6 +2012,7 @@ const product = await payload.create({
 })
 
 console.log(`created "${product.title}" with ${viewDocs.length} views`)
+console.log('note: mockups are validated for consistency with each other, not for correct framing (spec §6.1)')
 for (const v of viewDocs) {
   console.log(`  ${v.slug}: ${v.printArea.widthMm}x${v.printArea.heightMm}mm, ${v.mockups.length} mockups`)
 }
@@ -1994,6 +2057,15 @@ git commit -m "feat(web): seed one complete garment"
 - [ ] Media is served from S3-compatible storage.
 - [ ] The Playwright round-trip passes, **including the step that renders the saved print area and confirms it matches**.
 - [ ] `pnpm seed:garment` produces a coherent product that raises no mismatch banner.
+- [ ] The editor states that mockup validation proves consistency, not correct framing (spec §6.1).
+- [ ] Task 0's spike findings are recorded, and its stub is **not** committed.
+
+## Carried into Plan 3 as a blocking item
+
+**`view.slug` immutability must appear in Plan 3's Definition of Done as a literal blocking item,
+not as an assumption.** This plan makes slugs unique and well-formed; nothing yet stops one being
+renamed after a design references it. Deferring is safe only while `designs` holds nothing. The
+cost of forgetting is a silently orphaned design — discovered when someone tries to render it.
 
 ## What this plan deliberately does not do
 

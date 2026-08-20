@@ -7,6 +7,40 @@
 
 ---
 
+## 0. Blocking item carried from Plan 1: the golden images are unverified
+
+**This is listed first because it blocks trusting a test category, not because it blocks this
+plan's code.**
+
+Five golden images are committed and every future render is diffed against them. Nothing has
+formally confirmed they were correct when generated. A golden-image test is **self-referential**:
+it proves output has not changed, and proves nothing about whether the output was ever right. A
+golden generated from broken code locks that bug in permanently, and the suite cannot detect it —
+that is the one failure mode this category is blind to about itself.
+
+**Scope, stated precisely.** This does *not* undermine the calibration tests, and the distinction
+matters:
+
+| Test category | Verified against | Status |
+|---|---|---|
+| Calibration, scale parity, PDF artwork size | **Arithmetic and physical truth** — `abs(measured − 100mm) < 0.1mm`, no reference image | Self-verifying; independently re-measured |
+| Golden images | **Themselves** — a committed PNG | Unverified reference |
+
+Plan 1's central claim — that a design authored in millimetres renders at its true physical size —
+rests entirely on the first row and is sound. What is unverified is the regression net around
+*appearance*: curve direction, stroke, shadow, rotation, opacity.
+
+**Current evidence:** all five were inspected once and found correct — the arc bows upward and
+reads left-to-right with visibly tight `AV` kerning, the outline and shadow are present and not
+mirrored, the rotated image is ~30° clockwise at 100 × 60 mm and rendered grey by its 0.8 opacity,
+and the two multi-view files are byte-identical to their counterparts. That is evidence, not a
+sign-off.
+
+**What closes it:** a human confirming the five images depict what a garment design should look
+like. Until then, treat a golden failure as "output changed" and never as "output is wrong."
+
+---
+
 ## 1. What this is
 
 Plan 1 proved that a design authored in millimetres renders at its true physical size. It did so
@@ -188,6 +222,18 @@ that view and **refuses** a mismatch — it does not warn. Tolerance **0.5 %**, 
 The error names the view, both images, and both aspect ratios, so the admin can act on it without
 guessing.
 
+### 6.1 "Consistent" is not "correct"
+
+This check compares mockups **against each other**, which is all a `beforeChange` hook can know.
+If the first mockup uploaded for a view is itself mis-cropped, every later upload matching that
+same wrong ratio passes cleanly.
+
+That is the right check for what is knowable here, but a clean save must not be read as
+confirmation that the photography is right. The editor therefore states this near the canvas —
+"consistent with the other mockups for this view; it cannot confirm the photograph itself is
+correctly framed" — and the seed script says the same in its output. A silent pass that reads as
+validation is worse than no validation.
+
 ---
 
 ## 7. Error handling
@@ -237,7 +283,7 @@ what the renderer does, which is the same property calibration proved for the me
 | `background.paddingMm` unmapped | **Still parked.** Nothing sets it until Plan 3's editor exposes the control; it must close there. |
 | Text `wMm` containment only partially enforced | **Still parked**, same reason. Closing it needs `design-fabric` to supply measured widths to `validate.ts` as it already supplies heights. |
 | PDF shadows rasterise at ~72 ppi | **Product decision, outstanding.** Not a code change; project spec §10.2's contingency was written for shadows *failing*, and they degrade instead. |
-| Golden images never formally reviewed | **Outstanding.** They are merged and are now the reference every render is diffed against. |
+| Golden images never formally reviewed | **Blocking — promoted out of this table. See §0.** |
 | Acknowledgement matching ignores `shown` | Still deferred. Belongs with Plan 3's editor, which decides re-prompt behaviour. |
 | CI `unit` job's apt list relies on runner defaults | Should be pinned; cheap, unrelated to this plan. |
 
@@ -254,5 +300,11 @@ Stated because they were not settled during design, and each is made cheap to re
    value; it absorbs stored rounding without admitting a visibly wrong rectangle.
 4. **Per-size print-area overrides remain optional**, as scaffolded, and are edited numerically in
    this plan. Visual per-size editing was considered and dropped.
-5. **`view.slug` is immutable once a design references it.** Enforcement of that is Plan 3's
-   problem; this plan only makes slugs unique and well-formed.
+5. **`view.slug` is immutable once a design references it.** This plan only makes slugs unique and
+   well-formed; enforcement of immutability is Plan 3's.
+
+   **That is an inheritance, not a hand-wave: it must appear as a literal blocking item in Plan 3's
+   Definition of Done, not as an assumption carried forward.** It is safe to defer only because
+   `designs` stores nothing until Plan 3 writes to it (§5.4). The cost of forgetting is a silently
+   orphaned design — a stored document pointing at a view slug that no longer exists, discovered
+   when someone tries to render it.
