@@ -8,15 +8,9 @@ importers:
 
   .:
     devDependencies:
-      '@kreart/design-core':
-        specifier: workspace:*
-        version: link:packages/design-core
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
-      canvas:
-        specifier: ^3.2.3
-        version: 3.2.3
       tsx:
         specifier: ^4.23.12
         version: 4.23.12

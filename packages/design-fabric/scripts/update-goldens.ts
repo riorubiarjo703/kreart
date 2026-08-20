@@ -2,12 +2,12 @@ import { createCanvas, loadImage } from 'canvas'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parseDesignDocument } from '@kreart/design-core'
-import { setMetricsContext, type MediaResolver } from '../packages/design-fabric/src/index.js'
-import { registerFontFile } from '../packages/design-fabric/src/fonts-node.js'
-import { renderViewToPng } from '../packages/design-fabric/src/render-node.js'
+import { setMetricsContext, type MediaResolver } from '../src/index.js'
+import { registerFontFile } from '../src/fonts-node.js'
+import { renderViewToPng } from '../src/render-node.js'
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url))
-const base = '../packages/design-fabric/test/fixtures'
+const base = '../test/fixtures'
 
 registerFontFile(dir(`${base}/fonts/Inter-Bold.ttf`), 'InterTest', 700)
 setMetricsContext(createCanvas(10, 10).getContext('2d') as unknown as CanvasRenderingContext2D)

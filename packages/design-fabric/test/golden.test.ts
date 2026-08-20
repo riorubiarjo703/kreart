@@ -29,6 +29,40 @@ const CASES: { name: string; view: string }[] = [
   { name: 'multi-view', view: 'back' },
 ]
 
+/**
+ * Bounding box of non-background (non-white, non-transparent) pixels.
+ *
+ * A pixel-count diff (pixelmatch below) is structurally blind to translation
+ * of sparse content: shifting a large solid shape by a couple of pixels
+ * barely changes how many pixels differ, so a systematic offset introduced
+ * by e.g. a DPI or rounding regression can slip under the 0.1% ceiling
+ * undetected. The ink bounding box moves with any such shift even when the
+ * pixel count barely does, so comparing it independently catches what the
+ * diff ratio alone cannot.
+ */
+function inkBBox(png: PNG): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (let y = 0; y < png.height; y++) {
+    for (let x = 0; x < png.width; x++) {
+      const idx = (png.width * y + x) << 2
+      const r = png.data[idx]
+      const g = png.data[idx + 1]
+      const b = png.data[idx + 2]
+      const a = png.data[idx + 3]
+      if (a !== 0 && (r !== 255 || g !== 255 || b !== 255)) {
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+  return { minX, minY, maxX, maxY }
+}
+
 describe('golden images', () => {
   for (const { name, view } of CASES) {
     it(`${name} / ${view} matches its golden`, async () => {
@@ -59,6 +93,29 @@ describe('golden images', () => {
       // antialiasing varies slightly across cairo builds; 0.1% of pixels is the ceiling
       const ratio = differing / (actual.width * actual.height)
       expect(ratio).toBeLessThan(0.001)
+
+      // Additional check: the pixel-diff ratio above is blind to a global
+      // translation of sparse/solid content (a large shape shifted by a
+      // couple of pixels barely changes the diff count). Compare ink
+      // bounding boxes independently, with a small allowance for
+      // antialiased-edge variation across cairo builds, to catch exactly
+      // that failure mode.
+      const actualBox = inkBBox(actual)
+      const goldenBox = inkBBox(golden)
+      const edges: Array<[string, number, number]> = [
+        ['minX', actualBox.minX, goldenBox.minX],
+        ['minY', actualBox.minY, goldenBox.minY],
+        ['maxX', actualBox.maxX, goldenBox.maxX],
+        ['maxY', actualBox.maxY, goldenBox.maxY],
+      ]
+      for (const [edge, a, b] of edges) {
+        expect(
+          Math.abs(a - b),
+          `ink bbox ${edge} drifted: actual=${a}, golden=${b} (actual bbox ` +
+            `[${actualBox.minX},${actualBox.minY}..${actualBox.maxX},${actualBox.maxY}], ` +
+            `golden bbox [${goldenBox.minX},${goldenBox.minY}..${goldenBox.maxX},${goldenBox.maxY}])`,
+        ).toBeLessThanOrEqual(1)
+      }
     })
   }
 })
