@@ -3,7 +3,8 @@ import { createCanvas } from 'canvas'
 import { fileURLToPath } from 'node:url'
 import { getEnv as getNodeFabricEnv } from 'fabric/node'
 import { setEnv as setFabricEnv } from 'fabric'
-import { dpiToPxPerMm } from '@kreart/design-core'
+import { dpiToPxPerMm, validatePlacement } from '@kreart/design-core'
+import { Textbox } from 'fabric'
 import { setMetricsContext, mapTextObject, textHeightsMm, CurvedText } from '../src/index.js'
 import { registerFontFile } from '../src/fonts-node.js'
 import type { TextObject, DesignView } from '@kreart/design-core'
@@ -149,5 +150,85 @@ describe('textHeightsMm', () => {
     for (const angle of [30, 45, 90, 180, 270]) {
       expect(at(angle)).toBeCloseTo(base, 6)
     }
+  })
+})
+
+/**
+ * Whole-branch review C3. `wMm` is authoritative in validatePlacement (spec
+ * §6.2) but was ignored when rendering: mapTextObject built a FabricText,
+ * which never wraps. A text declaring `wMm: 10` rendered 501mm wide while
+ * validatePlacement, measuring the declared 10mm, returned no issues at all
+ * — the authoritative containment check passed an object overflowing the
+ * print area by 200mm. Spec §4.2 already specifies wrapping ("font.sizeMm,
+ * lineHeight and wrapping within wMm"); it simply was not implemented.
+ */
+describe('straight text wraps within wMm (spec 4.2)', () => {
+  const LONG = 'A VERY LONG LINE OF TEXT THAT SHOULD WRAP ONTO SEVERAL LINES'
+  const WRAP_MM = 120   // wider than the longest single word at this size; see the last test
+  const long = (over: Partial<TextObject> = {}) =>
+    text({ text: LONG, wMm: WRAP_MM, ...over })
+
+  it('breaks the text into several lines rather than one long one', () => {
+    const o = mapTextObject(long(), { pxPerMm: 1.8 }) as Textbox
+    expect(o.textLines.length).toBeGreaterThan(1)
+  })
+
+  it('never renders wider than the declared wMm', () => {
+    const pxPerMm = 1.8
+    const o = mapTextObject(long(), { pxPerMm }) as Textbox
+    expect(o.getScaledWidth() / pxPerMm).toBeLessThanOrEqual(WRAP_MM + 0.01)
+    for (let i = 0; i < o.textLines.length; i++) {
+      expect(o.getLineWidth(i) / pxPerMm).toBeLessThanOrEqual(WRAP_MM + 0.01)
+    }
+  })
+
+  it('measures the wrapped height, so it grows with the number of lines', () => {
+    const oneLine = textHeightsMm(
+      { printAreaMm: { w: 300, h: 400 }, objects: [text()] }, { pxPerMm: 1.8 },
+    ).t1!
+    const wrapped = textHeightsMm(
+      { printAreaMm: { w: 300, h: 400 }, objects: [long()] }, { pxPerMm: 1.8 },
+    ).t1!
+    expect(wrapped).toBeGreaterThan(oneLine * 5)
+  })
+
+  it('lets validatePlacement see the overflow the render actually produces', () => {
+    // Before wrapping existed this design was 501mm wide inside a 300mm
+    // print area and validatePlacement returned [] — it trusted the
+    // declared 60mm box that nothing enforced. Now the box is real: the
+    // text stays inside it horizontally and spills off the bottom instead,
+    // which is exactly what renders.
+    const view: DesignView = {
+      printAreaMm: { w: 300, h: 400 },
+      objects: [long({ xMm: 20, yMm: 250 })],
+    }
+    const heights = textHeightsMm(view, { pxPerMm: 1.8 })
+    const issues = validatePlacement(view, heights)
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0]!.objectId).toBe('t1')
+    expect(issues[0]!.overflowMm.right).toBe(0)
+    expect(issues[0]!.overflowMm.bottom).toBeCloseTo(250 + heights.t1! - 400, 6)
+    expect(issues[0]!.overflowMm.bottom).toBeGreaterThan(20)
+  })
+
+  it('leaves a text that already fits its wMm on a single line', () => {
+    const o = mapTextObject(text(), { pxPerMm: 1.8 }) as Textbox
+    expect(o.textLines).toEqual(['AVATAR'])
+  })
+
+  it('documents the residual gap: a single word wider than wMm cannot wrap', () => {
+    // Fabric floors a Textbox's width at `dynamicMinWidth`, the width of the
+    // longest unbreakable word, so a wMm narrower than one word still
+    // renders wider than declared — and validatePlacement, which measures
+    // the declared wMm, would not see it. Word wrapping cannot fix this;
+    // only hyphenation or per-glyph breaking could, and neither is
+    // specified. Pinned deliberately so the remaining gap is visible rather
+    // than forgotten. If this ever fails, the floor changed — update the
+    // note and the check together rather than deleting it.
+    const pxPerMm = 1.8
+    const o = mapTextObject(text({ text: 'UNBREAKABLE', wMm: 10 }), { pxPerMm }) as Textbox
+    expect(o.textLines).toHaveLength(1)
+    expect(o.getScaledWidth() / pxPerMm).toBeGreaterThan(10)
   })
 })

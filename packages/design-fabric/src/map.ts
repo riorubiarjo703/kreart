@@ -1,4 +1,4 @@
-import { FabricImage, FabricText, Shadow, type FabricObject } from 'fabric'
+import { FabricImage, Shadow, Textbox, type FabricObject } from 'fabric'
 import { mmToPx, pxToMm, type DesignView, type ImageObject, type TextObject } from '@kreart/design-core'
 import { CurvedText } from './curved-text.js'
 import { assertFontAvailable } from './fonts.js'
@@ -52,8 +52,18 @@ export function mapTextObject(obj: TextObject, { pxPerMm }: MapContext): FabricO
   // in the wrong weight.
   assertFontAvailable(obj.font.family, obj.font.weight)
 
-  return new FabricText(obj.text, {
+  // Textbox, not FabricText: `wMm` is the width validatePlacement treats as
+  // authoritative (spec §6.2), and spec §4.2 derives text height from
+  // "font.sizeMm, lineHeight and wrapping within wMm". A FabricText does not
+  // wrap, so a declared width of 10mm used to render 501mm wide while
+  // validation happily measured the 10mm nothing enforced — the containment
+  // check passed a design overflowing the print area. Textbox wraps at the
+  // width it is given, which makes the declared box the box that renders.
+  //
+  // Curved text is exempt above: an arc has no wrap width.
+  return new Textbox(obj.text, {
     ...shared,
+    width: px(obj.wMm),
     fontFamily: obj.font.family,
     fontWeight: obj.font.weight,
     fontSize: px(obj.font.sizeMm),
