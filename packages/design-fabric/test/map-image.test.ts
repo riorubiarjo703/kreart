@@ -60,6 +60,29 @@ describe('mapImageObject', () => {
     await mapImageObject(image({ background: 'removed' }), { pxPerMm: 2 }, spy)
     expect(seen).toEqual(['removed'])
   })
+
+  it('throws instead of dividing by a fallback when the resolved image has a zero dimension', async () => {
+    const zero: MediaResolver = async () => ({ width: 0, height: 1200 } as unknown as CanvasImageSource)
+    await expect(
+      mapImageObject(image(), { pxPerMm: 2 }, zero),
+    ).rejects.toThrow(/black/)
+    await expect(
+      mapImageObject(image(), { pxPerMm: 2 }, zero),
+    ).rejects.toThrow(/0x1200/)
+  })
+
+  it('throws when the resolved image dimensions do not match the recorded sourcePx', async () => {
+    const mismatched: MediaResolver = async () => ({ width: 600, height: 600 } as unknown as CanvasImageSource)
+    await expect(
+      mapImageObject(image(), { pxPerMm: 2 }, mismatched),
+    ).rejects.toThrow(/black/)
+    await expect(
+      mapImageObject(image(), { pxPerMm: 2 }, mismatched),
+    ).rejects.toThrow(/1200x1200/) // recorded sourcePx
+    await expect(
+      mapImageObject(image(), { pxPerMm: 2 }, mismatched),
+    ).rejects.toThrow(/600x600/) // actual resolved image
+  })
 })
 
 describe('mapView', () => {

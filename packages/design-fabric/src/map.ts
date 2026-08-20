@@ -103,9 +103,28 @@ export async function mapImageObject(
     originY: 'top',
   })
 
+  // Fail loudly rather than dividing by a fallback: a resolved image with a
+  // non-positive dimension would otherwise silently produce a nonsensical
+  // scale factor instead of an error (spec §11 — no silent substitution).
+  if (!Number.isFinite(img.width) || !Number.isFinite(img.height) || img.width <= 0 || img.height <= 0) {
+    throw new Error(
+      `Media "${obj.mediaId}" resolved to an image with invalid dimensions ${img.width}x${img.height} (both must be positive)`,
+    )
+  }
+
+  // The document's stored sourcePx (used elsewhere, e.g. effectiveDpi's print-quality
+  // guardrail) must describe the same pixels this function actually scales from.
+  // If media was swapped or metadata went stale, the guardrail would silently report
+  // a DPI the render does not have. Fail loudly instead of trusting stale metadata.
+  if (img.width !== obj.sourcePx.w || img.height !== obj.sourcePx.h) {
+    throw new Error(
+      `Media "${obj.mediaId}" sourcePx mismatch: recorded ${obj.sourcePx.w}x${obj.sourcePx.h}, resolved image is ${img.width}x${img.height}`,
+    )
+  }
+
   // scale the intrinsic pixels down to the requested physical size
-  img.scaleX = mmToPx(obj.wMm, pxPerMm) / (img.width || 1)
-  img.scaleY = mmToPx(obj.hMm, pxPerMm) / (img.height || 1)
+  img.scaleX = mmToPx(obj.wMm, pxPerMm) / img.width
+  img.scaleY = mmToPx(obj.hMm, pxPerMm) / img.height
 
   return img
 }
