@@ -96,7 +96,15 @@ export class CurvedText extends FabricObject {
 
     this.width = Math.max(2 * (half >= Math.PI / 2 ? rOuter : rOuter * Math.sin(half)), 1)
     this.height = Math.max(
-      half >= Math.PI / 2 ? 2 * rOuter : rOuter - rInner * Math.cos(half),
+      // The wide-arc branch used to be a constant 2*rOuter, correct only at
+      // half === PI (a closed ring). For a point at angle theta from the top
+      // of a circle of radius r centred below the text, y = -r*cos(theta); the
+      // topmost ink is at theta=0 (y=-rOuter) and, once half exceeds PI/2, the
+      // lowest ink is at theta=half (y=-rOuter*cos(half)), giving a height of
+      // rOuter*(1 - cos(half)) — continuous with the narrow-arc branch below at
+      // half === PI/2 (both give rOuter there), unlike the old constant, which
+      // jumped by 2x at the boundary.
+      half >= Math.PI / 2 ? rOuter * (1 - Math.cos(half)) : rOuter - rInner * Math.cos(half),
       1,
     )
 

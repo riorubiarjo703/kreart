@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createCanvas } from 'canvas'
 import { fileURLToPath } from 'node:url'
-import { fontString, setMetricsContext, CurvedText } from '../src/index.js'
+import { fontString, setMetricsContext, CurvedText, kernedAdvances } from '../src/index.js'
 import { registerFontFile } from '../src/fonts-node.js'
 
 const FONT = fileURLToPath(new URL('./fixtures/fonts/Inter-Bold.ttf', import.meta.url))
 
+let measureCtx: CanvasRenderingContext2D
+
 beforeAll(() => {
   registerFontFile(FONT, 'InterTest', 700)
-  const ctx = createCanvas(10, 10).getContext('2d') as unknown as CanvasRenderingContext2D
-  setMetricsContext(ctx)
+  measureCtx = createCanvas(10, 10).getContext('2d') as unknown as CanvasRenderingContext2D
+  setMetricsContext(measureCtx)
 })
 
 const make = (over = {}) => new CurvedText({
@@ -17,6 +19,15 @@ const make = (over = {}) => new CurvedText({
   fontSize: 40, radius: 200, letterSpacing: 2, direction: 'up',
   fill: '#111', ...over,
 })
+
+// Independently recomputes the same inkTotal #recalc() uses internally, so
+// tests can predict the exact geometry without reaching into private state.
+function inkTotalFor(text: string, fontSize: number, letterSpacing: number): number {
+  measureCtx.font = fontString('InterTest', 700, fontSize)
+  const advances = kernedAdvances(measureCtx, text, letterSpacing)
+  if (advances.length === 0) return 0
+  return advances.reduce((a, b) => a + b, 0) - letterSpacing
+}
 
 describe('CurvedText', () => {
   it('reports a bounding box wide enough for the arc', () => {
@@ -119,5 +130,89 @@ describe('CurvedText', () => {
 
   it('does not throw for a font weight that was registered', () => {
     expect(() => make({ fontWeight: 700 })).not.toThrow()
+  })
+
+  // Review fix round 2: the wide-arc (half >= PI/2) height branch was a
+  // constant 2*rOuter, correct only at half === PI (a fully closed ring).
+  // For a point at angle theta from the top of a circle of radius r centred
+  // below the text, y = -r*cos(theta); once half exceeds PI/2 the lowest ink
+  // is at theta=half, giving height = rOuter*(1 - cos(half)) instead.
+  it('uses the continuous wide-arc height formula, not a constant 2*rOuter', () => {
+    const text = 'STOREFRAME'
+    const fontSize = 40
+    const letterSpacing = 2
+    const radius = 70
+    const inkTotal = inkTotalFor(text, fontSize, letterSpacing)
+    const half = Math.min(inkTotal / radius / 2, Math.PI)
+    expect(half).toBeGreaterThan(Math.PI / 2) // sanity: genuinely in the wide-arc branch
+
+    const rOuter = radius + fontSize / 2
+    const expectedHeight = rOuter * (1 - Math.cos(half))
+    const wrongConstantHeight = 2 * rOuter
+
+    const t = make({ text, fontSize, letterSpacing, radius })
+    expect(t.height).toBeCloseTo(expectedHeight, 6)
+    expect(Math.abs(t.height - wrongConstantHeight)).toBeGreaterThan(20)
+  })
+
+  it('is continuous across the half === PI/2 boundary, not off by ~2x', () => {
+    const text = 'STOREFRAME'
+    const fontSize = 40
+    const letterSpacing = 2
+    const inkTotal = inkTotalFor(text, fontSize, letterSpacing)
+
+    // radius 100 -> half just below PI/2 (narrow-arc branch);
+    // radius 90  -> half just above PI/2 (wide-arc branch).
+    const belowRadius = 100
+    const aboveRadius = 90
+    const halfBelow = Math.min(inkTotal / belowRadius / 2, Math.PI)
+    const halfAbove = Math.min(inkTotal / aboveRadius / 2, Math.PI)
+    expect(halfBelow).toBeLessThan(Math.PI / 2)
+    expect(halfAbove).toBeGreaterThan(Math.PI / 2)
+
+    const below = make({ text, fontSize, letterSpacing, radius: belowRadius })
+    const above = make({ text, fontSize, letterSpacing, radius: aboveRadius })
+
+    // Heights come from different radii so they won't be identical, but they
+    // must stay within a few percent of each other across the boundary — not
+    // differ by ~2x the way the old constant-2*rOuter branch would.
+    const ratio = above.height / below.height
+    expect(ratio).toBeGreaterThan(0.9)
+    expect(ratio).toBeLessThan(1.1)
+  })
+
+  it('declares a wide-arc height close to the actually rendered ink, not ~33% too tall', () => {
+    const size = 900
+    const canvas = createCanvas(size, size)
+    const ctx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
+    const cx = size / 2
+    const cy = size / 2
+    ctx.translate(cx, cy)
+
+    const text = 'STOREFRAME'
+    const fontSize = 40
+    const letterSpacing = 2
+    const radius = 70
+    const t = make({ text, fontSize, letterSpacing, radius })
+    t.render(ctx)
+
+    const { data } = canvas.getContext('2d').getImageData(0, 0, size, size)
+    let minY = Infinity
+    let maxY = -Infinity
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const alpha = data[(y * size + x) * 4 + 3]!
+        if (alpha > 0) {
+          if (y < minY) minY = y
+          if (y > maxY) maxY = y
+        }
+      }
+    }
+    const renderedHeight = maxY - minY
+    expect(renderedHeight).toBeGreaterThan(0)
+    // Declared height should be a reasonable envelope around the rendered
+    // ink, not the ~33% overstatement the constant-2*rOuter branch produced.
+    expect(t.height).toBeGreaterThanOrEqual(renderedHeight)
+    expect(t.height / renderedHeight).toBeLessThan(1.15)
   })
 })
