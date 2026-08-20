@@ -107,4 +107,47 @@ describe('textHeightsMm', () => {
     const b = textHeightsMm(view, { pxPerMm: dpiToPxPerMm(300) }).t1!
     expect(Math.abs(a - b)).toBeLessThan(0.01)
   })
+
+  // Magnitude, not just sign. The two assertions above ("> 0" and
+  // scale-invariance) are both satisfied by a height that is really a
+  // width, which is exactly how the double-rotation defect below survived
+  // every per-task review. A single line of 20mm type occupies
+  // fontSize * 1.13 mm (Fabric's _fontSizeMult) — a shade over the em, an
+  // order of magnitude away from this string's ~84mm width.
+  it('reports a height of the order of the font size, not of the text width', () => {
+    const view: DesignView = { printAreaMm: { w: 300, h: 400 }, objects: [text()] }
+    const h = textHeightsMm(view, { pxPerMm: 1.8 }).t1!
+    expect(h).toBeGreaterThan(20)   // at least the em
+    expect(h).toBeLessThan(30)      // nowhere near the ~84mm line width
+    expect(h).toBeCloseTo(20 * 1.13, 1)
+  })
+
+  // Whole-branch review C2. getBoundingRect() in Fabric 7 is the *rotated*
+  // axis-aligned box, but validate.ts is the layer that applies rotation
+  // (via rotatedBoundsMm) — so returning a rotated height here rotated the
+  // object twice and the authoritative containment check of spec §6.2 was
+  // measuring the wrong rectangle. Measured before the fix: the same text
+  // reported 22.60mm at 0 degrees and 84.49mm at 90 degrees, i.e. at 90
+  // degrees it returned the text's *width*.
+  it('returns the unrotated height, leaving rotation to validate.ts', () => {
+    const upright: DesignView = { printAreaMm: { w: 300, h: 400 }, objects: [text()] }
+    const turned: DesignView = {
+      printAreaMm: { w: 300, h: 400 }, objects: [text({ rotation: 90 })],
+    }
+    const a = textHeightsMm(upright, { pxPerMm: 1.8 }).t1!
+    const b = textHeightsMm(turned, { pxPerMm: 1.8 }).t1!
+    expect(b).toBeCloseTo(a, 6)
+  })
+
+  it('is unaffected by rotation at any angle, not just right angles', () => {
+    const at = (rotation: number) =>
+      textHeightsMm(
+        { printAreaMm: { w: 300, h: 400 }, objects: [text({ rotation })] },
+        { pxPerMm: 1.8 },
+      ).t1!
+    const base = at(0)
+    for (const angle of [30, 45, 90, 180, 270]) {
+      expect(at(angle)).toBeCloseTo(base, 6)
+    }
+  })
 })

@@ -64,17 +64,26 @@ export function mapTextObject(obj: TextObject, { pxPerMm }: MapContext): FabricO
 }
 
 /**
- * Measured height in mm for each text object in a view.
+ * Measured *unrotated* height in mm for each text object in a view.
  *
  * design-core refuses to guess text heights (Tasks 4 and 5) because a guessed
  * height silently validates a design that does not fit. This is the supplier.
+ *
+ * Deliberately `getScaledHeight()` and NOT `getBoundingRect().height`: in
+ * Fabric 7 the bounding rect is the rotated, axis-aligned box, whereas
+ * validate.ts is the layer that applies rotation (rotatedBoundsMm). Feeding
+ * it a rotated height rotates the object twice, so the authoritative
+ * containment check of spec §6.2 measures a rectangle the design does not
+ * have — at 90 degrees a bounding-rect height is literally the text's width.
+ * The contract here is therefore: heights come out of this function upright,
+ * and design-core turns them.
  */
 export function textHeightsMm(view: DesignView, ctx: MapContext): Record<string, number> {
   const out: Record<string, number> = {}
   for (const obj of view.objects) {
     if (obj.kind !== 'text') continue
     const mapped = mapTextObject(obj, ctx)
-    out[obj.id] = pxToMm(mapped.getBoundingRect().height, ctx.pxPerMm)
+    out[obj.id] = pxToMm(mapped.getScaledHeight(), ctx.pxPerMm)
   }
   return out
 }
