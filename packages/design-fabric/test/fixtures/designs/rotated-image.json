@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1, "productId": "p", "sizeId": "s", "colourwayId": "c",
+  "views": { "front": { "printAreaMm": { "w": 200, "h": 200 }, "objects": [
+    { "id": "i1", "kind": "image", "mediaId": "black",
+      "xMm": 50, "yMm": 50, "wMm": 100, "hMm": 60,
+      "rotation": 30, "opacity": 0.8,
+      "sourcePx": { "w": 1200, "h": 1200 }, "background": "original" } ] } }
+}

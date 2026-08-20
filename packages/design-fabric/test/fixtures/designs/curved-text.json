@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1, "productId": "p", "sizeId": "s", "colourwayId": "c",
+  "views": { "front": { "printAreaMm": { "w": 200, "h": 200 }, "objects": [
+    { "id": "t1", "kind": "text", "text": "AVATAR WAVY", "xMm": 20, "yMm": 80,
+      "wMm": 160, "rotation": 0,
+      "font": { "family": "InterTest", "weight": 700, "sizeMm": 18, "letterSpacingMm": 1.5, "lineHeight": 1.2 },
+      "fill": "#111111",
+      "curve": { "radiusMm": 70, "direction": "up" } } ] } }
+}
