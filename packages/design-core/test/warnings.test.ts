@@ -79,6 +79,12 @@ describe('collectWarnings', () => {
     expect(w[0]!.kind).toBe('lowDpi')
     expect(w[0]!.measured).toBeLessThan(300)
   })
+
+  it('throws when text object height is not measured', () => {
+    expect(() => {
+      collectWarnings(view([txt()]), DEFAULT_GUARDRAILS, {})
+    }).toThrow('No measured height supplied for text object t1')
+  })
 })
 
 const doc = (warnings: DesignDocument['acknowledgements']): DesignDocument => ({

@@ -1,5 +1,6 @@
 import type { DesignObject, DesignView } from './schema.js'
 import { rotatedBoundsMm, type RectMm } from './geometry.js'
+import { requireTextHeightMm } from './text-height.js'
 
 export type PlacementIssue = {
   objectId: string
@@ -13,11 +14,7 @@ export type PlacementIssue = {
  */
 function heightMm(obj: DesignObject, textHeightsMm: Record<string, number>): number {
   if (obj.kind === 'image') return obj.hMm
-  const measured = textHeightsMm[obj.id]
-  if (measured === undefined) {
-    throw new Error(`No measured height supplied for text object ${obj.id}`)
-  }
-  return measured
+  return requireTextHeightMm(obj.id, textHeightsMm)
 }
 
 /**

@@ -1,5 +1,6 @@
 import { MM_PER_INCH } from './units.js'
 import type { DesignDocument, DesignView, ImageObject } from './schema.js'
+import { requireTextHeightMm } from './text-height.js'
 
 export type Guardrails = {
   targetDpi: number
@@ -47,8 +48,8 @@ export function collectWarnings(
       continue
     }
 
-    const height = textHeightsMm[obj.id]
-    if (height !== undefined && height < g.minTextHeightMm) {
+    const height = requireTextHeightMm(obj.id, textHeightsMm)
+    if (height < g.minTextHeightMm) {
       out.push({
         objectId: obj.id, kind: 'smallText',
         measured: height, threshold: g.minTextHeightMm, unit: 'mm',
