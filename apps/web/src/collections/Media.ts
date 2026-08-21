@@ -4,7 +4,13 @@ export const Media: CollectionConfig = {
   slug: 'media',
   access: { read: () => true },
   upload: {
-    // Local disk for now. Spec §13 puts this on S3-compatible storage in production.
+    // Served from S3-compatible storage (MinIO locally) via @payloadcms/storage-s3 —
+    // spec §13. Its getFile.js always returns a Response, so Payload's core local-disk
+    // fallback (payload/dist/uploads/endpoints/getFile.js) is dead code once the adapter
+    // is registered: a document whose file only exists on local disk (pre-migration, or
+    // from a restored older backup) will 404 through the read endpoint even though the
+    // bytes are still on disk. No files predate this migration, so nothing to backfill —
+    // but a restored backup needs its files re-uploaded to the bucket, not just the DB.
     staticDir: 'media',
     mimeTypes: ['image/*'],
   },
