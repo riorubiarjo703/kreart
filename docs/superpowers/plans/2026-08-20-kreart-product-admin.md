@@ -1417,7 +1417,7 @@ export function centreHorizontally(rect: NormRect): NormRect {
 - [ ] **Step 4: Run the tests**
 
 Run: `pnpm vitest run apps/web/test/rectDrag.test.ts`
-Expected: PASS, 12 tests.
+Expected: PASS, 13 tests.
 
 - [ ] **Step 5: Commit**
 
