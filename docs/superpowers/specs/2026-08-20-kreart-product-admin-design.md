@@ -7,10 +7,15 @@
 
 ---
 
-## 0. Blocking item carried from Plan 1: the golden images are unverified
+## 0. CLOSED — the golden images are verified
 
-**This is listed first because it blocks trusting a test category, not because it blocks this
-plan's code.**
+**Status: closed on 2026-08-21.** The five golden images were reviewed and confirmed correct. The
+golden-image suite is now a trustworthy regression net: a failure means output changed *from a
+verified-correct reference*, which is what the category is for.
+
+The reasoning below is kept because it explains what the suite does and does not prove, and the
+same gate applies to any golden added later — including the template renders sub-project D will
+introduce.
 
 Five golden images are committed and every future render is diffed against them. Nothing has
 formally confirmed they were correct when generated. A golden-image test is **self-referential**:
@@ -36,8 +41,11 @@ mirrored, the rotated image is ~30° clockwise at 100 × 60 mm and rendered grey
 and the two multi-view files are byte-identical to their counterparts. That is evidence, not a
 sign-off.
 
-**What closes it:** a human confirming the five images depict what a garment design should look
-like. Until then, treat a golden failure as "output changed" and never as "output is wrong."
+**How it was closed:** reviewed and confirmed on 2026-08-21.
+
+**The standing rule for any golden added later:** a new reference image is not trustworthy until a
+human has confirmed it depicts what it should. Generating one from broken code locks that bug in
+permanently, and the suite cannot detect it."
 
 ---
 
@@ -283,7 +291,7 @@ what the renderer does, which is the same property calibration proved for the me
 | `background.paddingMm` unmapped | **Still parked.** Nothing sets it until Plan 3's editor exposes the control; it must close there. |
 | Text `wMm` containment only partially enforced | **Still parked**, same reason. Closing it needs `design-fabric` to supply measured widths to `validate.ts` as it already supplies heights. |
 | PDF shadows rasterise at ~72 ppi | **Product decision, outstanding.** Not a code change; project spec §10.2's contingency was written for shadows *failing*, and they degrade instead. |
-| Golden images never formally reviewed | **Blocking — promoted out of this table. See §0.** |
+| Golden images never formally reviewed | **Closed** 2026-08-21 — reviewed and confirmed. See §0. |
 | Acknowledgement matching ignores `shown` | Still deferred. Belongs with Plan 3's editor, which decides re-prompt behaviour. |
 | CI `unit` job's apt list relies on runner defaults | Should be pinned; cheap, unrelated to this plan. |
 
