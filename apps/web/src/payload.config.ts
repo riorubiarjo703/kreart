@@ -10,6 +10,8 @@ import { Media } from './collections/Media'
 import { Sizes } from './collections/Sizes'
 import { Colourways } from './collections/Colourways'
 import { Products } from './collections/Products'
+import { Fonts } from './collections/Fonts'
+import { Designs } from './collections/Designs'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -21,7 +23,7 @@ export default buildConfig({
     meta: { titleSuffix: ' · kreart' },
   },
 
-  collections: [Users, Media, Sizes, Colourways, Products],
+  collections: [Users, Media, Sizes, Colourways, Products, Fonts, Designs],
 
   editor: lexicalEditor(),
 

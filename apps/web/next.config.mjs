@@ -7,6 +7,11 @@ const nextConfig = {
   // what `tsc -b` and vitest require. The bundler needs to be told to try .ts first,
   // or every relative import inside those packages fails to resolve.
   transpilePackages: ['@kreart/design-core', '@kreart/design-fabric'],
+  // textHeightsMm() (called from validateDesign.ts during a design save) needs a
+  // real 2D context and registered fonts, which means the native node-canvas
+  // module in this process. It cannot be bundled — tell Next to require() it
+  // at runtime instead.
+  serverExternalPackages: ['canvas'],
   webpack: (config) => {
     config.resolve.extensionAlias = {
       ...(config.resolve.extensionAlias ?? {}),

@@ -14,10 +14,13 @@
   },
   "dependencies": {
     "@kreart/design-core": "workspace:*",
+    "@kreart/design-fabric": "workspace:*",
     "@payloadcms/db-postgres": "3.88.0",
     "@payloadcms/next": "3.88.0",
     "@payloadcms/richtext-lexical": "3.88.0",
     "@payloadcms/ui": "3.88.0",
+    "canvas": "^3.2.3",
+    "fabric": "7.4.0",
     "graphql": "^16.9.0",
     "next": "^15.4.0",
     "payload": "3.88.0",

@@ -1,4 +1,6 @@
 import type { CollectionConfig } from 'payload'
+import { validateViewSlugs } from '../hooks/validateViewSlugs'
+import { validateMockupAspects } from '../hooks/validateMockupAspects'
 
 /**
  * A garment. Its print geometry is expressed in MILLIMETRES — see spec §3.
@@ -19,6 +21,18 @@ export const Products: CollectionConfig = {
     description: 'Garments and their print areas. All geometry is in millimetres.',
   },
   access: { read: () => true },
+  hooks: {
+    beforeChange: [
+      ({ data }) => {
+        validateViewSlugs(data?.views ?? [])
+        return data
+      },
+      async ({ data, req }) => {
+        await validateMockupAspects(data, req as never)
+        return data
+      },
+    ],
+  },
   fields: [
     { name: 'title', type: 'text', required: true },
     { name: 'slug', type: 'text', required: true, unique: true, index: true },

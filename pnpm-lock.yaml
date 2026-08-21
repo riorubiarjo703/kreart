@@ -29,6 +29,9 @@ importers:
       '@kreart/design-core':
         specifier: workspace:*
         version: link:../../packages/design-core
+      '@kreart/design-fabric':
+        specifier: workspace:*
+        version: link:../../packages/design-fabric
       '@payloadcms/db-postgres':
         specifier: 3.88.0
         version: 3.88.0(payload@3.88.0(graphql@16.14.2)(typescript@5.9.3))
@@ -41,6 +44,12 @@ importers:
       '@payloadcms/ui':
         specifier: 3.88.0
         version: 3.88.0(@types/react@19.2.18)(monaco-editor@0.56.0)(next@15.5.23(babel-plugin-macros@3.1.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(sass@1.77.4))(payload@3.88.0(graphql@16.14.2)(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
+      canvas:
+        specifier: ^3.2.3
+        version: 3.2.3
+      fabric:
+        specifier: 7.4.0
+        version: 7.4.0
       graphql:
         specifier: ^16.9.0
         version: 16.14.2

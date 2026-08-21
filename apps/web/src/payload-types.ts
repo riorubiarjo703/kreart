@@ -72,6 +72,8 @@ export interface Config {
     sizes: Size;
     colourways: Colourway;
     products: Product;
+    fonts: Font;
+    designs: Design;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -84,6 +86,8 @@ export interface Config {
     sizes: SizesSelect<false> | SizesSelect<true>;
     colourways: ColourwaysSelect<false> | ColourwaysSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
+    fonts: FontsSelect<false> | FontsSelect<true>;
+    designs: DesignsSelect<false> | DesignsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -292,6 +296,72 @@ export interface Product {
   createdAt: string;
 }
 /**
+ * Fonts offered in the design editor. Self-hosted — never linked from a CDN.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fonts".
+ */
+export interface Font {
+  id: number;
+  family: string;
+  /**
+   * The worker registers each weight separately; an unregistered weight fails loudly at render.
+   */
+  weight: number;
+  /**
+   * SIL OFL 1.1, Apache 2.0, a commercial licence name…
+   */
+  licenceName: string;
+  licenceUrl: string;
+  permitsServerRendering: boolean;
+  /**
+   * The PDF print master outlines glyphs as a side effect — this is easy to violate unintentionally.
+   */
+  permitsOutlineConversion: boolean;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * Customer designs. Written by the editor in a later plan; validated here.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "designs".
+ */
+export interface Design {
+  id: number;
+  product: number | Product;
+  sizeId: string;
+  colourwayId: string;
+  status: 'draft' | 'finalising' | 'finalised' | 'render-failed';
+  /**
+   * A DesignDocument (project spec §4.2). Millimetres only — a pixel value here is a bug.
+   */
+  document:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  renderOutputs?: {
+    pdf?: (number | null) | Media;
+    png?: (number | null) | Media;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -334,6 +404,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'products';
         value: number | Product;
+      } | null)
+    | ({
+        relationTo: 'fonts';
+        value: number | Font;
+      } | null)
+    | ({
+        relationTo: 'designs';
+        value: number | Design;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -491,6 +569,48 @@ export interface ProductsSelect<T extends boolean = true> {
               id?: T;
             };
         id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fonts_select".
+ */
+export interface FontsSelect<T extends boolean = true> {
+  family?: T;
+  weight?: T;
+  licenceName?: T;
+  licenceUrl?: T;
+  permitsServerRendering?: T;
+  permitsOutlineConversion?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "designs_select".
+ */
+export interface DesignsSelect<T extends boolean = true> {
+  product?: T;
+  sizeId?: T;
+  colourwayId?: T;
+  status?: T;
+  document?: T;
+  renderOutputs?:
+    | T
+    | {
+        pdf?: T;
+        png?: T;
       };
   updatedAt?: T;
   createdAt?: T;
