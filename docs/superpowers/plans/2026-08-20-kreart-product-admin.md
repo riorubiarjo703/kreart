@@ -383,7 +383,7 @@ export * from './print-area.js'
 - [ ] **Step 4: Run the tests**
 
 Run: `pnpm vitest run packages/design-core/test/print-area.test.ts`
-Expected: PASS, 18 tests.
+Expected: PASS, 21 tests.
 
 - [ ] **Step 5: Run the whole suite and typecheck**
 

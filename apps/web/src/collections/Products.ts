@@ -102,6 +102,14 @@ export const Products: CollectionConfig = {
                 { name: 'h', label: 'Height (0-1)', type: 'number', required: true, defaultValue: 0.5, min: 0, max: 1, admin: { width: '25%' } },
               ],
             },
+            // SPIKE STUB (Task 0) — throwaway, revert before finishing.
+            {
+              name: 'editor',
+              type: 'ui',
+              admin: {
+                components: { Field: '@/fields/EditorStub#default' },
+              },
+            },
           ],
         },
 
